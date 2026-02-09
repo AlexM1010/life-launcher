@@ -18,12 +18,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
 import app.lifelauncher.data.AppInfo
 import app.lifelauncher.data.AppListRepository
 import app.lifelauncher.data.PreferencesRepository
 import app.lifelauncher.helper.ScreenTimeHelper
 import app.lifelauncher.widgets.WidgetHost
 import app.lifelauncher.widgets.WidgetType
+import app.lifelauncher.widgets.data.UserEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -142,7 +144,9 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 WidgetHost(
                     widgetType = topWidget,
-                    horizontalAlignment = horizontalAlignment
+                    horizontalAlignment = horizontalAlignment,
+                    onOpenLifeManager = { openLifeManager(context) },
+                    onOpenEvent = { event -> openEvent(context, event) }
                 )
             }
             
@@ -174,7 +178,9 @@ fun HomeScreen(
             if (bottomWidget != WidgetType.NONE) {
                 WidgetHost(
                     widgetType = bottomWidget,
-                    horizontalAlignment = horizontalAlignment
+                    horizontalAlignment = horizontalAlignment,
+                    onOpenLifeManager = { openLifeManager(context) },
+                    onOpenEvent = { event -> openEvent(context, event) }
                 )
                 Spacer(modifier = Modifier.height(24.dp))
             }
@@ -289,5 +295,30 @@ private fun openCalendar(context: android.content.Context) {
         context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (e: Exception) {
         e.printStackTrace()
+    }
+}
+
+private fun openLifeManager(context: android.content.Context) {
+    try {
+        // Open Life Manager web app - adjust URL as needed
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://localhost:5173"))
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        // Fallback to calendar if web app not accessible
+        openCalendar(context)
+    }
+}
+
+private fun openEvent(context: android.content.Context, event: UserEvent) {
+    try {
+        // Try meeting link first, then location, then calendar
+        val uri = event.meetingLink?.let { Uri.parse(it) }
+            ?: event.location?.takeIf { it.startsWith("http") }?.let { Uri.parse(it) }
+            ?: CalendarContract.CONTENT_URI.buildUpon().appendPath("time").build()
+        
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (e: Exception) {
+        openCalendar(context)
     }
 }
